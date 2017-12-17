@@ -7,6 +7,7 @@ import socketio
 import eventlet
 import eventlet.wsgi
 import time
+import cv2
 from PIL import Image
 from PIL import ImageOps
 from flask import Flask, render_template
@@ -17,7 +18,7 @@ from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_a
 
 # Fix error with Keras and TensorFlow
 import tensorflow as tf
-# tf.python.control_flow_ops = tf
+tf.python.control_flow_ops = tf
 
 
 sio = socketio.Server()
@@ -37,15 +38,12 @@ def telemetry(sid, data):
     imgString = data["image"]
     image = Image.open(BytesIO(base64.b64decode(imgString)))
     image_array = np.asarray(image)
+
     transformed_image_array = image_array[None, :, :, :]
     # This model currently assumes that the features of the model are just the images. Feel free to change this.
-    steering_angle = float(model.predict(transformed_image_array, batch_size=1)) * 5.0
+    steering_angle = float(model.predict(transformed_image_array, batch_size=1))
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
-    speed = float(speed)
-    if speed > 15:
-        throttle = 0.1
-    else:
-        throttle = 0.2
+    throttle = 0.27
     print(steering_angle, throttle)
     send_control(steering_angle, throttle)
 
@@ -72,15 +70,14 @@ if __name__ == '__main__':
         # NOTE: if you saved the file by calling json.dump(model.to_json(), ...)
         # then you will have to call:
         #
-        #   model = model_from_json(json.loads(jfile.read()))\
+        model = model_from_json(json.loads(jfile.read()))\
         #
         # instead.
-        model = model_from_json(jfile.read())
+        # model = model_from_json(jfile.read())
 
 
     model.compile("adam", "mse")
     weights_file = args.model.replace('json', 'h5')
-    # weights_file = "tmp/comma-4b.08-0.03.hdf5"
     model.load_weights(weights_file)
 
     # wrap Flask application with engineio's middleware
