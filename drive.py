@@ -39,12 +39,20 @@ def telemetry(sid, data):
     image = Image.open(BytesIO(base64.b64decode(imgString)))
     image_array = np.asarray(image)
 
+    # Changing RGB image to YUV planes
+    image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2YUV)
+
     transformed_image_array = image_array[None, :, :, :]
     # This model currently assumes that the features of the model are just the images. Feel free to change this.
     steering_angle = float(model.predict(transformed_image_array, batch_size=1))
-    # The driving model currently just outputs a constant throttle. Feel free to edit this.
+
+    ## The driving model currently just outputs a constant throttle. Feel free to edit this.
     throttle = 0.27
-    print(steering_angle, throttle)
+    if float(speed) < 10:
+        throttle = 1
+
+    # print(steering_angle, throttle)
+    print(round(steering_angle, 4), throttle, speed)
     send_control(steering_angle, throttle)
 
 
@@ -55,6 +63,7 @@ def connect(sid, environ):
 
 
 def send_control(steering_angle, throttle):
+    print("send control")
     sio.emit("steer", data={
     'steering_angle': steering_angle.__str__(),
     'throttle': throttle.__str__()
@@ -75,11 +84,12 @@ if __name__ == '__main__':
         # instead.
         model = model_from_json(jfile.read())
 
-
+    print("model is:", model)
     model.compile("adam", "mse")
     weights_file = args.model.replace('json', 'h5')
     model.load_weights(weights_file)
 
+    print("model has load weights")
     # wrap Flask application with engineio's middleware
     app = socketio.Middleware(sio, app)
 
